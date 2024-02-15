@@ -1,7 +1,10 @@
 using BookWareHouse.DTO;
 using BookWareHouse.DTO.Entites;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,23 +40,13 @@ builder.Services.Configure<IdentityOptions>(options =>
 	options.User.RequireUniqueEmail = true;
 
 	// Config login.
-	options.SignIn.RequireConfirmedEmail = true;
+	options.SignIn.RequireConfirmedEmail = false;
 	options.SignIn.RequireConfirmedPhoneNumber = false;
 });
-
-// Config Cookie
-builder.Services.ConfigureApplicationCookie(options =>
-{
-	// options.Cookie.HttpOnly = true;
-	options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
-	options.LoginPath = $"/login/";
-	options.LogoutPath = $"/logout/";
-	options.AccessDeniedPath = $"/Identity/Account/AccessDenied";
-});
-builder.Services.Configure<SecurityStampValidatorOptions>(options =>
-{
-	options.ValidationInterval = TimeSpan.FromSeconds(5);
-});
+//builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+//{
+//	options.ValidationInterval = TimeSpan.FromSeconds(5);
+//});
 
 #endregion Config Identity
 
@@ -64,6 +57,36 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<DbInitializer>();
+
+builder.Services.AddAuthentication(options => { 
+	options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+	options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+	options.TokenValidationParameters = new TokenValidationParameters
+	{
+		ValidateIssuer = false,
+		ValidateAudience = false,
+		ValidateLifetime = true,
+		ValidateIssuerSigningKey = true,
+		ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
+		ValidAudience = builder.Configuration["JWT:ValidAudience"],
+		IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:SecretKey"]))
+	};
+}); 
+
+builder.Services.AddAuthorization(options =>
+{
+	options.AddPolicy("AdminPolicy", policy =>
+		policy.RequireRole("Admin"));
+	options.AddPolicy("LibrarianPolicy", policy =>
+		policy.RequireRole("Librarian"));
+	options.AddPolicy("MemberPolicy", policy =>
+		policy.RequireRole("Member"));
+});
+
+builder.Services.AddScoped<SignInManager<AppUser>, SignInManager<AppUser>>();
+builder.Services.AddScoped<RoleManager<AppRole>, RoleManager<AppRole>>();
 
 #endregion Service
 
@@ -87,9 +110,8 @@ using (var scope = app.Services.CreateScope())
 app.UseHttpsRedirection();
 
 app.UseRouting();
-app.UseAuthorization();
 app.UseAuthentication();
-
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

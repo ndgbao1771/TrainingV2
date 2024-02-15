@@ -42,7 +42,7 @@ namespace BookWareHouse.DTO
 			}
 			if (!_userManager.Users.Any())
 			{
-				var a = await _userManager.CreateAsync(new AppUser()
+				await _userManager.CreateAsync(new AppUser()
 				{
 					UserName = "admin",
 					FirstName = "Nguyen Van",
@@ -54,6 +54,7 @@ namespace BookWareHouse.DTO
 					EmailConfirmed = true,
 					PhoneNumberConfirmed = true,
 				}, "123456");
+
 				var user = await _userManager.FindByNameAsync("admin");
 				await _userManager.AddToRoleAsync(user, "Admin");
 			}
