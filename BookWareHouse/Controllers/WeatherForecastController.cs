@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BookWareHouse.Controllers
 {
+	
 	[ApiController]
 	[Route("[controller]")]
 	public class WeatherForecastController : ControllerBase
@@ -18,6 +20,7 @@ namespace BookWareHouse.Controllers
 			_logger = logger;
 		}
 
+		[Authorize(Policy = "AdminPolicy")]
 		[HttpGet(Name = "GetWeatherForecast")]
 		public IEnumerable<WeatherForecast> Get()
 		{
