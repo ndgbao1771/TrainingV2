@@ -1,5 +1,8 @@
 ﻿using BookWareHouse.DTO.Entites;
 using BookWareHouse.Models;
+using BookWareHouse.Service.EntityDTO;
+using BookWareHouse.Service.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -9,25 +12,28 @@ using System.Text;
 
 namespace BookWareHouse.Controllers
 {
-	[Route("api/[controller]")]
 	[ApiController]
+	[Route("Auth")]
 	public class AuthController : ControllerBase
 	{
 		private readonly SignInManager<AppUser> _signInManager;
 		private readonly UserManager<AppUser> _userManager;
 		private readonly IConfiguration _configuration;
+		private readonly IAppUserService _appUserService;
 
 		public AuthController(
 			SignInManager<AppUser> signInManager,
 			UserManager<AppUser> userManager,
-			IConfiguration configuration)
+			IConfiguration configuration,
+			IAppUserService appUserService)
 		{
 			_signInManager = signInManager;
 			_userManager = userManager;
 			_configuration = configuration;
+			_appUserService = appUserService;
 		}
 
-		[HttpPost("login")]
+		[HttpPost]
 		public async Task<IActionResult> Login(LoginViewModel model)
 		{
 			// Authenticate user using SignInManager
@@ -42,6 +48,18 @@ namespace BookWareHouse.Controllers
 			}
 
 			return Unauthorized();
+		}
+
+		[HttpPost]
+		[AllowAnonymous]
+		public IActionResult Register(AppUserDTO model) 
+		{
+			if (!ModelState.IsValid)
+			{
+				_appUserService.Register(model);
+				return Created();
+			}
+			return BadRequest("Add Failed");
 		}
 
 		private string GenerateJwtToken(AppUser user)
