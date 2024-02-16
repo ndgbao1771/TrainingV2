@@ -1,5 +1,12 @@
+using AutoMapper;	
 using BookWareHouse.DTO;
 using BookWareHouse.DTO.Entites;
+using BookWareHouse.Extensions;
+using BookWareHouse.Repository.Interfaces;
+using BookWareHouse.Repository.Repositories;
+using BookWareHouse.Service.AutoMappers;
+using BookWareHouse.Service.Interfaces;
+using BookWareHouse.Service.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -43,10 +50,6 @@ builder.Services.Configure<IdentityOptions>(options =>
 	options.SignIn.RequireConfirmedEmail = false;
 	options.SignIn.RequireConfirmedPhoneNumber = false;
 });
-//builder.Services.Configure<SecurityStampValidatorOptions>(options =>
-//{
-//	options.ValidationInterval = TimeSpan.FromSeconds(5);
-//});
 
 #endregion Config Identity
 
@@ -58,7 +61,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<DbInitializer>();
 
-builder.Services.AddAuthentication(options => { 
+builder.Services.AddAuthentication(options =>
+{
 	options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
 	options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(options =>
@@ -73,20 +77,23 @@ builder.Services.AddAuthentication(options => {
 		ValidAudience = builder.Configuration["JWT:ValidAudience"],
 		IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:SecretKey"]))
 	};
-}); 
+});
 
 builder.Services.AddAuthorization(options =>
 {
 	options.AddPolicy("AdminPolicy", policy =>
 		policy.RequireRole("Admin"));
-	options.AddPolicy("LibrarianPolicy", policy =>
-		policy.RequireRole("Librarian"));
-	options.AddPolicy("MemberPolicy", policy =>
-		policy.RequireRole("Member"));
 });
+
+builder.Services.AddAutoMapper(typeof(AutoMapperConfig));
+builder.Services.AddScoped<IMapper>(sp => new Mapper(sp.GetRequiredService<AutoMapper.IConfigurationProvider>(), sp.GetService));
 
 builder.Services.AddScoped<SignInManager<AppUser>, SignInManager<AppUser>>();
 builder.Services.AddScoped<RoleManager<AppRole>, RoleManager<AppRole>>();
+
+builder.Services.AddTransient<IAppUserRepository, AppUserRepository>();
+
+builder.Services.AddTransient<IAppUserService, AppUserService>();
 
 #endregion Service
 
@@ -108,10 +115,14 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseHttpsRedirection();
-
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
+app.UseMiddleware<GlobalRoutePrefixMiddleware>("/api/");
+app.UsePathBase(new PathString("/api/"));
+app.UseEndpoints(endpoints =>
+{
+	endpoints.MapControllers();
+});
 
 app.Run();
